@@ -48,6 +48,8 @@ const migrations = await Promise.all(
 console.log(`Loaded ${migrations.length} migrations`)
 
 const singleFlag = process.argv.includes("--single")
+const windowsFlag = process.argv.includes("--windows")
+const darwinX64Flag = process.argv.includes("--darwin-x64")
 const baselineFlag = process.argv.includes("--baseline")
 const skipInstall = process.argv.includes("--skip-install")
 const sourcemapsFlag = process.argv.includes("--sourcemaps")
@@ -143,7 +145,16 @@ const allTargets: {
   // },
 ]
 
-const targets = singleFlag
+const platformFlags = [
+  ...(windowsFlag ? [{ os: "win32" as const, arch: "x64" as const }] : []),
+  ...(darwinX64Flag ? [{ os: "darwin" as const, arch: "x64" as const }] : []),
+]
+
+const targets = platformFlags.length > 0
+  ? allTargets.filter((item) =>
+      platformFlags.some((f) => item.os === f.os && item.arch === f.arch && item.avx2 !== false && item.abi === undefined),
+    )
+  : singleFlag
   ? allTargets.filter((item) => {
       if (item.os !== process.platform || item.arch !== process.arch) {
         return false
@@ -198,7 +209,7 @@ for (const item of targets) {
     conditions: ["browser"],
     tsconfig: "./tsconfig.json",
     plugins: [plugin],
-    external: ["node-gyp"],
+    external: ["node-gyp", "@ast-grep/napi"],
     format: "esm",
     minify: true,
     sourcemap: sourcemapsFlag ? "linked" : "none",
