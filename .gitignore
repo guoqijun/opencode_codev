@@ -7,11 +7,16 @@ node_modules
 .idea
 .vscode
 .codex
+.omc
+.claude
 *~
 playground
 tmp
+# Build artifacts
 dist
 ts-dist
+*.zip
+*.tar.gz
 .turbo
 **/.serena
 .serena/
