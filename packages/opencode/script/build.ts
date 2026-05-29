@@ -168,7 +168,17 @@ for (const item of targets) {
   await Bun.build({
     conditions: ["bun", "node"],
     tsconfig: "./tsconfig.json",
-    plugins: [plugin],
+    plugins: [
+      plugin,
+      {
+        name: "replace-y18n",
+        setup(build: any) {
+          build.onResolve({ filter: /^y18n$/ }, () => ({
+            path: path.join(dir, "src/y18n-shim.ts"),
+          }))
+        },
+      },
+    ],
     external: ["node-gyp"],
     format: "esm",
     minify: true,
