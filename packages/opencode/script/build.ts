@@ -92,10 +92,10 @@ const allTargets: {
   //   os: "linux",
   //   arch: "arm64",
   // },
-  // {
-  //   os: "linux",
-  //   arch: "x64",
-  // },
+  {
+    os: "linux",
+    arch: "x64",
+  },
   // {
   //   os: "linux",
   //   arch: "x64",
