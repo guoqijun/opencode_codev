@@ -67,7 +67,7 @@ function show(out: string) {
   process.stderr.write(out)
 }
 
-const cli = yargs(args, undefined, undefined, { y18n: { updateFiles: false } })
+const cli = yargs(args, undefined, undefined)
   .detectLocale(false)
   .parserConfiguration({ "populate--": true })
   .scriptName("opencode")
