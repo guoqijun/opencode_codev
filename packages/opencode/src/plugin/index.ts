@@ -20,9 +20,6 @@ import { CloudflareAIGatewayAuthPlugin, CloudflareWorkersAuthPlugin } from "./cl
 import { AzureAuthPlugin } from "./azure"
 import { DigitalOceanAuthPlugin } from "./digitalocean"
 import { XaiAuthPlugin } from "./xai"
-import ohMyOpenagentPlugin from "../../vendor/oh-my-opencode/dist/index.js"
-// Embed plugin package.json so findPackageJsonUp can detect version at runtime
-import "../../vendor/oh-my-opencode/package.json" with { type: "file" }
 import { Effect, Layer, Context, Stream } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
@@ -71,7 +68,6 @@ const INTERNAL_PLUGINS: PluginInstance[] = [
   AzureAuthPlugin,
   DigitalOceanAuthPlugin,
   XaiAuthPlugin,
-  ohMyOpenagentPlugin.server,
 ]
 
 function isServerPlugin(value: unknown): value is PluginInstance {
