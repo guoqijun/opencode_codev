@@ -189,6 +189,106 @@ export class Agent implements ACPAgent {
 
   private async handleEvent(event: Event) {
     switch (event.type) {
+      case "question.asked": {
+        const question = event.properties
+        const session = this.sessionManager.tryGet(question.sessionID)
+        if (!session) return
+
+        const prev = this.permissionQueues.get(question.sessionID) ?? Promise.resolve()
+        const next = prev
+          .then(async () => {
+            // 按照 codev 规范构造 rawInput.questions
+            const questions = question.questions.map((q) => ({
+              question: q.question,
+              header: q.header,
+              multi_select: q.multiple ?? false,
+              options: q.options.map((opt) => ({
+                label: opt.label,
+                description: opt.description,
+              })),
+            }))
+
+            const requestParams = {
+              sessionId: question.sessionID,
+              toolCall: {
+                toolCallId: question.tool?.callID ?? question.id,
+                status: "pending" as const,
+                title: "question",
+                rawInput: { questions },
+                kind: "other" as const,
+              },
+              options: [
+                { optionId: "proceed_once", kind: "allow_once" as const, name: "Proceed" },
+              ],
+            }
+
+            const res = await this.connection
+              .requestPermission(requestParams)
+              .catch(async (error) => {
+                await this.sdk.question.reject(question.id)
+                return undefined
+              })
+
+            if (!res) {
+              return
+            }
+
+            // 从 _meta.answers 或 res.answers 解析答案
+            const metaAnswers = (res._meta?.answers || res.answers) as Record<string, string> | undefined
+
+            if (res.outcome.outcome === "selected" && metaAnswers) {
+              // codev 返回格式: { "0": "React", "1": "TypeScript" }
+              // 转换为 question.reply 格式: [["React"], ["TypeScript"]]
+              const answers = question.questions.map((_, idx) => {
+                const answer = metaAnswers[String(idx)]
+                return answer ? [answer] : []
+              })
+
+              try {
+                await this.sdk.question.reply({
+                  requestID: question.id,
+                  answers,
+                })
+
+                // Send sessionUpdate to notify frontend that question is answered
+                // This is needed because frontend listens for sessionUpdate, not internal events
+                await this.connection
+                  .sessionUpdate({
+                    sessionId: question.sessionID,
+                    update: {
+                      sessionUpdate: "tool_call_update",
+                      toolCallId: question.tool?.callID ?? question.id,
+                      status: "completed",
+                      kind: "other",
+                      title: "question",
+                      rawInput: { questions },
+                      content: [
+                        {
+                          type: "content",
+                          content: {
+                            type: "text",
+                            text: `User answered: ${answers.map(a => a.join(", ")).join("; ")}`,
+                          },
+                        },
+                      ],
+                    },
+                  })
+                  .catch(() => {})
+              } catch {}
+            } else {
+              await this.sdk.question.reject(question.id)
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            if (this.permissionQueues.get(question.sessionID) === next) {
+              this.permissionQueues.delete(question.sessionID)
+            }
+          })
+        this.permissionQueues.set(question.sessionID, next)
+        return
+      }
+
       case "permission.asked": {
         const permission = event.properties
         const session = this.sessionManager.tryGet(permission.sessionID)

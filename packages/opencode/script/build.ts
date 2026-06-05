@@ -117,10 +117,10 @@ const allTargets: {
   //   abi: "musl",
   //   avx2: false,
   // },
-  // {
-  //   os: "darwin",
-  //   arch: "arm64",
-  // },
+  {
+     os: "darwin",
+     arch: "arm64",
+   },
   {
     os: "darwin",
     arch: "x64",
