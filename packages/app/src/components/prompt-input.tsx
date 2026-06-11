@@ -79,8 +79,6 @@ import { pathKey } from "@/utils/path-key"
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { displayName } from "@/pages/layout/helpers"
 
-const USE_V2_INPUT = import.meta.env.VITE_OPENCODE_CHANNEL !== "prod"
-
 interface PromptInputProps {
   class?: string
   variant?: "dock" | "new-session"
@@ -279,6 +277,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     draggingType: "image" | "@mention" | null
     mode: "normal" | "shell"
     applyingHistory: boolean
+    variantOpen: boolean
   }>({
     popover: null,
     historyIndex: -1,
@@ -287,6 +286,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     draggingType: null,
     mode: "normal",
     applyingHistory: false,
+    variantOpen: false,
   })
   const [picker, setPicker] = createStore({
     projectOpen: false,
@@ -1103,6 +1103,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   )
 
   const variants = createMemo(() => ["default", ...local.model.variant.list()])
+  // Check provider variants directly: `variants` also includes the UI-only default option.
+  const showVariantControl = createMemo(() => local.model.variant.list().length > 0)
   const accepting = createMemo(() => {
     const id = params.id
     if (!id) return permission.isAutoAcceptingDirectory(sdk.directory)
@@ -1365,6 +1367,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     navigate(`/${base64Encode(worktree)}/session`)
   }
   const addProject = async () => {
+    const conn = server.current
+    if (!conn) return
     const select = (result: string | string[] | null) => {
       const directory = Array.isArray(result) ? result[0] : result
       if (!directory) return
@@ -1376,7 +1380,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     }
     void import("@/components/dialog-select-directory").then((x) => {
       dialog.show(
-        () => <x.DialogSelectDirectory onSelect={select} />,
+        () => <x.DialogSelectDirectory onSelect={select} server={conn} />,
         () => select(null),
       )
     })
@@ -1456,7 +1460,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         t={(key) => language.t(key as Parameters<typeof language.t>[0])}
       />
       <Switch>
-        <Match when={USE_V2_INPUT}>
+        <Match when={settings.general.newLayoutDesigns()}>
           <div class="flex flex-col gap-3">
             <DockShellForm
               data-component={newSession() ? "session-new-composer" : "session-composer"}
@@ -1528,7 +1532,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     onKeyDown={handleKeyDown}
                     classList={{
                       "select-text": true,
-                      "min-h-[52px] w-full px-4 pt-4 pb-2 focus:outline-none whitespace-pre-wrap leading-5 text-[13px] font-[440] text-v2-text-text-faint [font-family:Inter,var(--font-family-sans)]": true,
+                      "min-h-[52px] w-full px-4 pt-4 pb-2 focus:outline-none whitespace-pre-wrap leading-5 text-[13px] font-[440] text-v2-text-text-base": true,
                       "[&_[data-type=file]]:text-syntax-property": true,
                       "[&_[data-type=agent]]:text-syntax-type": true,
                       "font-mono!": store.mode === "shell",
@@ -1571,6 +1575,39 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     <ComposerPickerTrigger state={newProjectTriggerState()} />
                   </Show>
                   <ComposerModelControl state={modelControlState()} />
+                  <Show when={store.mode !== "shell" && showVariantControl()}>
+                    <div
+                      data-component="prompt-variant-control"
+                      classList={{
+                        "hidden group-hover/prompt-input:block group-focus-within/prompt-input:block":
+                          !local.model.variant.current() && !store.variantOpen,
+                      }}
+                    >
+                      <TooltipKeybind
+                        placement="top"
+                        gutter={4}
+                        title={language.t("command.model.variant.cycle")}
+                        keybind={command.keybind("model.variant.cycle")}
+                      >
+                        <Select
+                          size="normal"
+                          options={variants()}
+                          current={local.model.variant.current() ?? "default"}
+                          label={(x) => (x === "default" ? language.t("common.default") : x)}
+                          onOpenChange={(open) => setStore("variantOpen", open)}
+                          onSelect={(value) => {
+                            local.model.variant.set(value === "default" ? undefined : value)
+                            restoreFocus()
+                          }}
+                          class="capitalize max-w-[160px] justify-start text-v2-text-text-faint"
+                          valueClass="truncate text-[13px] font-[440] leading-5 text-v2-text-text-faint"
+                          triggerStyle={control()}
+                          triggerProps={{ "data-action": "prompt-model-variant" }}
+                          variant="ghost"
+                        />
+                      </TooltipKeybind>
+                    </div>
+                  </Show>
                 </div>
                 <Tooltip placement="top" inactive={!working() && blank()} value={tip()}>
                   <IconButton
@@ -1890,7 +1927,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                             </TooltipKeybind>
                           </Show>
                         </div>
-                        <Show when={variants().length > 2}>
+                        <Show when={showVariantControl()}>
                           <div
                             data-component="prompt-variant-control"
                             style={providersShouldFadeIn() ? { animation: "fade-in 0.3s" } : undefined}
