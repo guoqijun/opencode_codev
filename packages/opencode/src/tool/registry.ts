@@ -220,7 +220,7 @@ export const layer: Layer.Layer<
         }
 
         yield* config.get()
-        const questionEnabled = ["app", "cli", "desktop", "acp"].includes(flags.client) || flags.enableQuestionTool
+        const questionEnabled = ["app", "cli", "desktop"].includes(flags.client) || flags.enableQuestionTool
 
         const tool = yield* Effect.all({
           invalid: Tool.init(invalid),
