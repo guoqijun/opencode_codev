@@ -193,7 +193,6 @@ export class Agent implements ACPAgent {
         const question = event.properties
         const session = this.sessionManager.tryGet(question.sessionID)
         if (!session) return
-        const directory = session.cwd
 
         const prev = this.permissionQueues.get(question.sessionID) ?? Promise.resolve()
         const next = prev
@@ -226,7 +225,7 @@ export class Agent implements ACPAgent {
             const res = await this.connection
               .requestPermission(requestParams)
               .catch(async (error) => {
-                await this.sdk.question.reject({ requestID: question.id, directory })
+                await this.sdk.question.reject(question.id)
                 return undefined
               })
 
@@ -249,8 +248,7 @@ export class Agent implements ACPAgent {
                 await this.sdk.question.reply({
                   requestID: question.id,
                   answers,
-                  directory,
-                }, { throwOnError: true })
+                })
 
                 // Send sessionUpdate to notify frontend that question is answered
                 // This is needed because frontend listens for sessionUpdate, not internal events
@@ -276,11 +274,9 @@ export class Agent implements ACPAgent {
                     },
                   })
                   .catch(() => {})
-              } catch (replyError) {
-                log.error("question.reply failed", { error: replyError, requestID: question.id, answers })
-              }
+              } catch {}
             } else {
-              await this.sdk.question.reject({ requestID: question.id, directory })
+              await this.sdk.question.reject(question.id)
             }
           })
           .catch(() => {})
