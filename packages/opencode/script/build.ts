@@ -56,10 +56,10 @@ const allTargets: {
   abi?: "musl"
   avx2?: false
 }[] = [
-  // {
-  //   os: "linux",
-  //   arch: "arm64",
-  // },
+  {
+    os: "linux",
+    arch: "arm64",
+  },
   {
     os: "linux",
     arch: "x64",
